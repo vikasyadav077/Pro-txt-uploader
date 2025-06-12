@@ -343,11 +343,15 @@ def get_videos_with_ytdlp(url):
     Retrieves video titles and URLs using `yt-dlp`.
     If a title is not available, only the URL is saved.
     """
-    ydl_opts = {
-        'quiet': True,
-        'extract_flat': True,
-        'skip_download': True,
-    }
+        ydl_opts = {
+            'quiet': True,
+            'extract_flat': False,
+            'skip_download': True,
+            'force_generic_extractor': False,
+            'simulate': True,
+        }
+
+    
     try:
         with YoutubeDL(ydl_opts) as ydl:
             result = ydl.extract_info(url, download=False)
