@@ -220,9 +220,45 @@ def save_to_file(video_links, channel_name):
             file.write(f"{number}. {title}: {formatted_url}\n")
     return filename
 
+async def download_akamai_video(url, output_path):
+    ydl_opts = {
+        'format': 'bestvideo[height<=720]+bestaudio/best[height<=720]',
+        'outtmpl': output_path,
+        'retries': 10,
+        'fragment_retries': 25,
+        'http_headers': {
+            'Referer': 'https://bharatlive-data/',
+            'Origin': 'https://bharatlive-data/'
+        },
+        'external_downloader': 'aria2c',
+        'downloader_args': {
+            'aria2c': ['-x16', '-j32', '-s32', '-k10M']
+        }
+    }
+    
+    try:
+        with YoutubeDL(ydl_opts) as ydl:
+            ydl.download([url])
+        return True
+    except Exception as e:
+        logging.error(f"Akamai download failed: {e}")
+        return False
+
 async def download_video(url, cmd, name):
-    download_cmd = f'{cmd} -R 25 --fragment-retries 25 --external-downloader aria2c --downloader-args "aria2c: -x 16 -j 32"'
-    global failed_counter
+    # Check if Akamai URL
+    if 'akamai.net.in' in url:
+        success = await download_akamai_video(url, name)
+        if not success:
+            return await handle_failed_download(url, cmd, name)
+        return name
+    
+    # Original download logic for other URLs
+    download_cmd = (f'yt-dlp -R 25 --fragment-retries 25 '
+                   f'--external-downloader aria2c '
+                   f'--downloader-args "aria2c: -x 16 -j 32" '
+                   f'"{url}" -o "{name}"')
+    
+    # Rest of your existing code...    global failed_counter
     print(download_cmd)
     logging.info(download_cmd)
     k = subprocess.run(download_cmd, shell=True)
@@ -360,3 +396,12 @@ async def send_vid(bot: Client, m: Message, cc, filename, thumb, name, prog):
 
     # ✅ Upload to log channel
     
+async def handle_failed_download(url, cmd, name):
+    global failed_counter
+    if failed_counter <= 10:
+        failed_counter += 1
+        await asyncio.sleep(5)
+        return await download_video(url, cmd, name)
+    else:
+        failed_counter = 0
+        raise Exception(f"Failed to download after 10 attempts: {url}")
