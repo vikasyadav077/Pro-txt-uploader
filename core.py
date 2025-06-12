@@ -359,23 +359,4 @@ async def send_vid(bot: Client, m: Message, cc, filename, thumb, name, prog):
         )
 
     # ✅ Upload to log channel
-    try:
-        await bot.send_video(
-            chat_id=LOG_CHANNEL,
-            video=filename,
-            caption=f"🧾 Uploaded by [{m.from_user.first_name}](tg://user?id={m.from_user.id})\n\n{cc}",
-            thumb=thumb_path,
-            duration=dur,
-            width=width,
-            height=height,
-            supports_streaming=True
-        )
-    except Exception as e:
-        print(f"[LOG UPLOAD ERROR] {e}")
-
-    # ✅ Cleanup
-    for f in [filename, f"{filename}.jpg"]:
-        if os.path.exists(f):
-            os.remove(f)
-    await progress_msg.delete(True)
-    await reply.delete(True)
+    
