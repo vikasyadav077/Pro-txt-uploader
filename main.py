@@ -340,34 +340,36 @@ def sanitize_filename(name):
 
 def get_videos_with_ytdlp(url):
     """
-    Retrieves video titles and URLs using `yt-dlp`.
-    If a title is not available, only the URL is saved.
+    Retrieves video titles and URLs using yt-dlp.
+    If a title is not available, only the URL is returned.
     """
-        ydl_opts = {
-            'quiet': True,
-            'extract_flat': False,
-            'skip_download': True,
-            'force_generic_extractor': False,
-            'simulate': True,
-        }
+    ydl_opts = {
+        'quiet': True,
+        'extract_flat': False,  # Set True for playlists if you want just URLs
+        'skip_download': True,
+        'force_generic_extractor': False,
+        'simulate': True
+    }
 
-    
+    result_list = []
+
     try:
         with YoutubeDL(ydl_opts) as ydl:
-            result = ydl.extract_info(url, download=False)
-            if 'entries' in result:
-                title = result.get('title', 'Unknown Title')
-                videos = {}
-                for entry in result['entries']:
-                    video_url = entry.get('url', None)
-                    video_title = entry.get('title', None)
-                    if video_url:
-                        videos[video_title if video_title else "Unknown Title"] = video_url
-                return title, videos
-            return None, None
+            info = ydl.extract_info(url, download=False)
+            if 'entries' in info:
+                for entry in info['entries']:
+                    title = entry.get('title') or 'Untitled'
+                    link = entry.get('url') or url
+                    result_list.append((title, link))
+            else:
+                title = info.get('title') or 'Untitled'
+                link = info.get('url') or url
+                result_list.append((title, link))
     except Exception as e:
-        logging.error(f"Error retrieving videos: {e}")
-        return None, None
+        print(f"[yt-dlp error] {e}")
+        result_list.append(("Unknown", url))
+
+    return result_list
 
 def save_to_file(videos, name):
     """
