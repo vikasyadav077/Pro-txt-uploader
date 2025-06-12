@@ -331,9 +331,7 @@ async def send_vid(bot: Client, m: Message, cc, filename, thumb, name, prog):
         dur = int(duration(filename))
     except:
         dur = None
-
-    width, height = 1280, 720  # Optional: auto detect with ffmpeg.probe()
-
+    
     await prog.delete(True)
     reply = await m.reply_text(f"🚀 Uploading: `{name}`")
 
