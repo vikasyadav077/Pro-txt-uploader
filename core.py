@@ -323,7 +323,8 @@ async def send_vid(bot: Client, m: Message, cc, filename, thumb, name, prog):
     subprocess.run(f'ffmpeg -i "{filename}" -ss 00:00:01 -vframes 1 "{thumb_path}"', shell=True)
 
     # Step 3: Final thumbnail check
-    thumbnail = thumb_path if thumb == "no" or not os.path.exists(thumb) else thumb
+    thumbnail = f"{filename}.jpg" if (thumb == "no" or not os.path.exists(thumb)) else thumb
+
 
     # Step 4: Duration + resolution
     try:
