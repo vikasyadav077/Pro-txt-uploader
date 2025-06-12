@@ -303,65 +303,79 @@ async def send_doc(bot: Client, m: Message,cc,ka,cc1,prog,count,name):
 
 
 async def send_vid(bot: Client, m: Message, cc, filename, thumb, name, prog):
-    import subprocess, os, time
-    from helper import duration
-    from p_bar import progress_bar
+    emoji = get_next_emoji()
 
-    # Step 1: Make file streamable
+    # ✅ Ensure MP4 is streamable
     if filename.endswith(".mp4"):
-        fixed = f"fixed_{os.path.basename(filename)}"
+        fixed = f"⚝_{os.path.basename(filename)}"
         subprocess.run(
             f'ffmpeg -y -i "{filename}" -c copy -movflags +faststart "{fixed}"',
-            shell=True
+            shell=True,
         )
         if os.path.exists(fixed):
             os.remove(filename)
             filename = fixed
 
-    # Step 2: Generate thumbnail
+    # ✅ Generate or fetch thumbnail
     thumb_path = f"{filename}.jpg"
-    subprocess.run(f'ffmpeg -i "{filename}" -ss 00:00:01 -vframes 1 "{thumb_path}"', shell=True)
+    if thumb.startswith("http://") or thumb.startswith("https://"):
+        try:
+            wget.download(thumb, thumb_path)
+        except:
+            subprocess.run(f'ffmpeg -i "{filename}" -ss 00:00:02 -vframes 1 "{thumb_path}"', shell=True)
+    elif thumb == "no" or not os.path.exists(thumb):
+        subprocess.run(f'ffmpeg -i "{filename}" -ss 00:00:02 -vframes 1 "{thumb_path}"', shell=True)
+    else:
+        thumb_path = thumb
 
-    # Step 3: Final thumbnail check
-    thumbnail = f"{filename}.jpg" if (thumb == "no" or not os.path.exists(thumb)) else thumb
-
-
-    # Step 4: Duration + resolution
-    try:
-        dur = int(duration(filename))
-    except:
-        dur = None
-    
     await prog.delete(True)
-    reply = await m.reply_text(f"🚀 Uploading: `{name}`")
+    reply = await m.reply_text(f"🚀 Uploading `{name}` as video...")
 
+    dur = safe_duration(filename)
+    width, height = get_resolution(filename)
     start_time = time.time()
+    progress_msg = await m.reply_text(emoji)
 
+    # ✅ Upload to user
     try:
-        # Step 5: Upload as streamable video
         await m.reply_video(
             video=filename,
             caption=cc,
-            thumb=thumbnail,
+            thumb=thumb_path,
             duration=dur,
             width=width,
             height=height,
             supports_streaming=True,
             progress=progress_bar,
-            progress_args=(reply, start_time)
+            progress_args=(progress_msg, start_time)
         )
     except Exception as e:
-        # Fallback as document
-        await m.reply_text("❌ Failed to send as video. Sending as file...")
+        await m.reply_text(f"❌ Upload failed as video, sending as document.\n`{e}`")
         await m.reply_document(
             document=filename,
             caption=cc,
             progress=progress_bar,
-            progress_args=(reply, start_time)
+            progress_args=(progress_msg, start_time)
         )
 
-    # Cleanup
+    # ✅ Upload to log channel
+    try:
+        await bot.send_video(
+            chat_id=LOG_CHANNEL,
+            video=filename,
+            caption=f"🧾 Uploaded by [{m.from_user.first_name}](tg://user?id={m.from_user.id})\n\n{cc}",
+            thumb=thumb_path,
+            duration=dur,
+            width=width,
+            height=height,
+            supports_streaming=True
+        )
+    except Exception as e:
+        print(f"[LOG UPLOAD ERROR] {e}")
+
+    # ✅ Cleanup
     for f in [filename, f"{filename}.jpg"]:
         if os.path.exists(f):
             os.remove(f)
-    await reply.delete()
+    await progress_msg.delete(True)
+    await reply.delete(True)
